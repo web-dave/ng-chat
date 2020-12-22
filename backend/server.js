@@ -1,12 +1,14 @@
-const express = require("express");
-const cors = require("cors");
-const app = express();
-const server = require("http").Server(app);
+const WebSocket = require("ws");
 const { v4: getID } = require("uuid");
 
-const WebSocket = require("ws");
-
 const clients = [];
+const room = {
+  name: "",
+  host: "",
+  attendees: [],
+};
+
+const rooms = {};
 
 const wss = new WebSocket.Server({ port: 3002 });
 
@@ -39,17 +41,3 @@ wss.on("connection", (client) => {
     });
   });
 });
-
-// Webserver um eine Uinique ID abzuholen
-
-app.use(express.static("public"));
-app.use(cors());
-
-app.get("/", (req, res) => {
-  res.send(getID());
-});
-app.get("/:ID", (req, res) => {
-  res.send(req.params.ID);
-});
-
-server.listen(3000);
