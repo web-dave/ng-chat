@@ -21,12 +21,7 @@ wss.on("connection", (client) => {
     id: id,
   };
   client.send(JSON.stringify(msg));
-  msg.message = "New User";
-  clients.forEach((c) => {
-    if (c !== client) {
-      c.send(JSON.stringify(msg));
-    }
-  });
+
   client.on("close", () => {
     clients.forEach((c, i) => {
       if (c === client) {
@@ -36,8 +31,38 @@ wss.on("connection", (client) => {
   });
   client.on("message", (m) => {
     const msg = JSON.parse(m);
-    clients.forEach((c) => {
-      c.send(JSON.stringify(msg));
-    });
+    const room = msg.id;
+    switch (msg.type) {
+      case "connection":
+        client.name = msg.message;
+        break;
+      case "message":
+        console.log(client.name);
+        msg.id = client.name;
+        if (rooms[room]) {
+          rooms[room].attendees.forEach((c) => {
+            c.send(JSON.stringify(msg));
+          });
+        }
+        break;
+      case "join":
+        if (!rooms[room]) {
+          rooms[room] = {
+            name: "",
+            host: client,
+            attendees: [],
+          };
+        }
+        rooms[room].attendees.push(client);
+
+        rooms[room].attendees.forEach((c) => {
+          if (c !== client) {
+            c.send(JSON.stringify(msg));
+          }
+        });
+        break;
+      case "leave":
+        break;
+    }
   });
 });
