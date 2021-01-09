@@ -31,7 +31,7 @@
   </aside>
   <main class="main">
     <div class="placeholder" *ngIf="room === ''">
-      <button (click)="joinRoom()">📺</button>
+      <button [disabled]="name === ''" (click)="joinRoom()">📡</button>
     </div>
 
     <div class="video-grid">
@@ -59,7 +59,6 @@
       </div>
     </div>
   </main>
-
   <footer class="footer">
     <div class="footer__copyright">&copy; 2021 webdave_de</div>
     <div class="footer__signature">Made with ❤️ and ☕☕☕</div>
