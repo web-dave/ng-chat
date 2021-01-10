@@ -2,9 +2,9 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { from, Subject } from 'rxjs';
 import { mergeMap, takeUntil, tap } from 'rxjs/operators';
 import { WebSocketSubject } from 'rxjs/webSocket';
-
+type IMsgType = 'connection' | 'message' | 'join' | 'leave' | 'available';
 interface IMsg {
-  type: 'connection' | 'message' | 'join' | 'leave';
+  type: IMsgType;
   message: string;
   id: string;
 }
@@ -19,8 +19,10 @@ export class AppComponent implements OnInit, OnDestroy {
   msg: string = '';
   messages: IMsg[] = [];
   end$ = new Subject();
-  room = '';
   socket = new WebSocketSubject<IMsg>('ws://localhost:3002');
+  _room = '';
+  room = '';
+  _name: string = '';
   name: string = '';
   localStream: MediaStream;
   remoteStreams: MediaStream[] = [];
@@ -29,26 +31,43 @@ export class AppComponent implements OnInit, OnDestroy {
     [id: string]: any;
   } = {};
   id: string = '';
+  remoteNames: string[] = [];
   constructor(private cdr: ChangeDetectorRef) {}
   ngOnInit(): void {
-    this.socket.pipe(takeUntil(this.end$)).subscribe((m) => {
-      switch (m.type) {
-        case 'connection':
-          if (m.message === 'Welcome') {
-            const name = prompt('Whats your name?');
-            console.log(name);
-            this.id = m.id;
-            if (name) {
-              this.name = name;
-              this.sendMessage(this.name, 'connection');
+    this.socket.pipe(takeUntil(this.end$)).subscribe(
+      (m) => {
+        switch (m.type) {
+          case 'connection':
+            if (m.message === 'Welcome') {
+              this.id = m.id;
             }
-          }
-          break;
-        case 'message':
-          this.messages.push(m);
-          break;
-      }
-    });
+            break;
+          case 'message':
+            this.messages.push(m);
+            break;
+          case 'available':
+            const call = this.myPeer.call(m.id, this.localStream);
+            this.connectToNewUser(call);
+            break;
+          case 'leave':
+            this.peers[m.id]?.close();
+            break;
+        }
+      },
+      (err) => {
+        console.error(err);
+        this.name = '';
+        this.room = '';
+      },
+      () => console.info('CLOSED')
+    );
+  }
+
+  setName(v) {
+    if (v) {
+      this.name = v;
+      this.sendMessage(this.name, 'connection');
+    }
   }
 
   initVideo() {
@@ -62,33 +81,46 @@ export class AppComponent implements OnInit, OnDestroy {
       )
       .pipe(takeUntil(this.end$))
       .subscribe((data) => {
-        this.myPeer = new data.default(this.id) as IPeerJs;
+        this.myPeer = new data.default(this.name) as IPeerJs;
         this.myPeer.on('open', (id) => {
           console.log(id);
         });
-        // this.myPeer.on('call', (call) => {
-        //   call.answer(this.localStream);
-        //   call.on('stream', (stream: MediaStream) => {
-        //     this.remoteStreams.push(stream);
-        //   });
-        // });
+        this.myPeer.on('call', (call) => {
+          call.answer(this.localStream);
+          this.connectToNewUser(call);
+        });
       });
   }
 
-  sendMessage(
-    message: string,
-    type: 'connection' | 'message' | 'join' | 'leave' = 'message'
-  ) {
+  startCall() {
+    this.sendMessage(this.name, 'available');
+  }
+
+  sendMessage(message: string, type: IMsgType = 'message') {
     this.socket.next({ type, id: this.room, message });
     this.msg = '';
   }
-  joinRoom() {
-    const room = prompt('Please enter Room Name');
-    if (room) {
-      this.room = room;
+  setRoom(v) {
+    if (v) {
+      this.room = v;
       this.sendMessage(this.room, 'join');
       this.initVideo();
     }
+  }
+
+  connectToNewUser(call: any) {
+    console.log(call.peer);
+    call.on('stream', (stream: MediaStream) => {
+      this.remoteStreams.push(stream);
+      this.peers[call.peer] = call;
+      this.remoteNames = Object.keys(this.peers);
+      console.log(this.remoteNames);
+    });
+    call.on('close', () => {
+      this.peers[call.peer].close();
+    });
+
+    console.log(this.peers);
   }
 
   ngOnDestroy() {

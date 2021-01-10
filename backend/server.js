@@ -15,6 +15,7 @@ const wss = new WebSocket.Server({ port: 3002 });
 wss.on("connection", (client) => {
   clients.push(client);
   const id = getID();
+  client.uid = id;
   const msg = {
     type: "connection",
     message: "Welcome",
@@ -26,6 +27,29 @@ wss.on("connection", (client) => {
     clients.forEach((c, i) => {
       if (c === client) {
         clients.splice(i, 1);
+      }
+    });
+    const roomIds = Object.keys(rooms);
+    roomIds.forEach((rId) => {
+      if (rooms[rId].attendees.includes(client)) {
+        const msg = {
+          type: "leave",
+          message: "Tschö mit Ö",
+          id: client.uid,
+        };
+        rooms[rId].attendees.forEach((c) => {
+          if (c !== client) {
+            c.send(JSON.stringify(msg));
+          }
+        });
+        rooms[rId].attendees.forEach((c, i) => {
+          if (c === client) {
+            clients.splice(i, 1);
+          }
+        });
+        if (rooms[rId].attendees.length === 0) {
+          delete rooms[rId];
+        }
       }
     });
   });
@@ -60,6 +84,17 @@ wss.on("connection", (client) => {
             c.send(JSON.stringify(msg));
           }
         });
+        break;
+      case "available":
+        if (rooms[room]) {
+          msg.id = msg.message;
+          rooms[room].attendees.forEach((c) => {
+            console.log("call", c.name);
+            if (c !== client) {
+              c.send(JSON.stringify(msg));
+            }
+          });
+        }
         break;
       case "leave":
         break;

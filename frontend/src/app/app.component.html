@@ -7,12 +7,8 @@
     <div class="header__avatar">🦄</div>
   </header>
   <aside class="sidenav">
-    <div
-      class="card-container"
-      *ngFor="let m of messages"
-      [ngClass]="{ me: m.id === name }"
-    >
-      <div class="card card-big">
+    <div class="card-container" *ngFor="let m of messages">
+      <div class="card card-big" [ngClass]="{ me: m.id === name }">
         <span>{{ m.message }}</span
         ><br />
         <small>{{ m.id }}</small>
@@ -31,10 +27,43 @@
   </aside>
   <main class="main">
     <div class="placeholder" *ngIf="room === ''">
-      <button [disabled]="name === ''" (click)="joinRoom()">📡</button>
+      <div class="form__group field" *ngIf="name === ''">
+        <input
+          type="input"
+          class="form__field"
+          placeholder="Whats your name?"
+          name="name"
+          id="name"
+          required
+          [value]="_name"
+          (input)="_name = $event.target.value"
+        />
+        <label for="name" class="form__label">Whats your name?</label>
+        <button (click)="setName(_name)">🐱‍💻</button>
+      </div>
+      <div class="form__group field" *ngIf="name !== ''">
+        <input
+          type="input"
+          class="form__field"
+          placeholder="Whats your name?"
+          name="room"
+          id="room"
+          required
+          [value]="_room"
+          (input)="_room = $event.target.value"
+        />
+        <label for="room" class="form__label">Enter Room Name</label>
+        <button (click)="setRoom(_room)">👨‍👩‍👧‍👦</button>
+      </div>
     </div>
 
     <div class="video-grid">
+      <label
+        *ngIf="remoteStreams.length === 0 && room !== ''"
+        (click)="startCall()"
+      >
+        📞
+      </label>
       <div class="video-card" *ngIf="localStream">
         <video
           id="me"
@@ -46,16 +75,19 @@
         ></video>
         <div class="user-name">{{ name }}</div>
       </div>
-      <div class="video-card" *ngFor="let stream of remoteStreams">
+      <div
+        class="video-card"
+        *ngFor="let stream of remoteStreams; let i = index"
+      >
         <video
           id="me"
           height="190"
           width="257"
-          [srcObject]="localStream"
+          [srcObject]="stream"
           autoplay
           muted
         ></video>
-        <div class="user-name">{{ name }}</div>
+        <div class="user-name">{{ remoteNames[i] }}</div>
       </div>
     </div>
   </main>
